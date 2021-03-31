@@ -36,8 +36,8 @@ def normalize(t,y):
 def create_train(values, tstep):
     """given data and a time step, output training data set"""
     op1 = []
-    op2 = []
+    #op2 = []
     for i in range(len(values) - tstep):
-        op1.append(values[i : (i + tstep)][0])
-        op2.append(values[i + tstep])
-    return np.stack(op1), np.stack(op2)
+        op1.append(values[i : (i + tstep)])
+        #op2.append(values[i + tstep])
+    return np.stack(op1)
