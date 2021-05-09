@@ -19,13 +19,15 @@ class simulator:
     Ndetections = 0            # total detection events
     N = 0.           # average detection events per bin
     ndata = 0         # number of data files generated
+    info = {}         # a dictionary containing simulation parameters
     
     # fraction of light sources
     p_sps = 0.         
     p_laser = 0.      
     p_non = 0.        
     p_ther = 0.      
-
+    
+    
     
    # exp_rate = 1.       # exponential rate
    # n = 1           # number of identical single photon emitters
@@ -52,8 +54,7 @@ class simulator:
         self.p_non = non / (sps + non + ther + laser)
         self.p_ther = ther / (sps + non + ther + laser)
         
-    def info(self):
-        info = {
+        self.info = {
             'single photon fraction' : self.p_sps,
             'laser fraction' : self.p_laser,
             'thermal source fraction': self.p_ther,
@@ -61,13 +62,12 @@ class simulator:
             'number of bins': self.Nbins,
             'bin width (ns)': self.bin_width,
             'average detection events per bin': self.N,}
-        return info
         
         
     def piechart(self):
         fig,ax = plt.subplots(1,1)
-        ax.pie([i for i in list(info.values())[:4]],
-        labels=[i for i in list(info.keys())[:4]],autopct='%1.2f%%',startangle=90)
+        ax.pie([i for i in list(self.info.values())[:4]],
+        labels=[i for i in list(self.info.keys())[:4]],autopct='%1.2f%%',startangle=90)
         ax.set_title('Probability of light sources')
         fig.show()
         
@@ -77,9 +77,9 @@ class simulator:
         generate probability distribution of co-detection events
         '''
         Nbin = self.Nbins
-        bin_array = tf.range(Nbin//2 * (-1) ,Nbin//2+1,delta=1,dtype=float32)
-        bin_n = tf.constant(np.linspace(min(bin_array),-1,Nbin//2),dtype=float32)
-        bin_p = tf.constant(np.linspace(1,max(bin_array),Nbin//2),dtype=float32)
+        bin_array = tf.range(Nbin//2 * (-1) ,Nbin//2+1,delta=1,dtype=tf.float32)
+        bin_n = tf.constant(np.linspace(min(bin_array),-1,Nbin//2),dtype=tf.float32)
+        bin_p = tf.constant(np.linspace(1,max(bin_array),Nbin//2),dtype=tf.float32)
         
         # single photon source
         sps_dist = tfd.MixtureSameFamily(
@@ -104,14 +104,51 @@ class simulator:
             tfd.Uniform(low=[min(bin_array),0.,1],high=[0,1.,max(bin_array)+1])
                        )
         
+        total_dist = tfd.Mixture(
+            cat = tfd.Categorical(probs=[self.p_sps, self.p_laser, self.p_non, self.p_ther]),
+            components = [sps_dist,laser_dist,non_dist,ther_dist] )
+        
+        return total_dist
+
+        
+    def sample(self,distribution, shape):
+        '''
+        input: 
+        distribution -> a tf distribution,  
+        shape -> 0D or 1D `int32` `Tensor`. Shape of the generated samples
+        output:
+        sample array
+        '''
+        dist = distribution
+        try:
+            samples = dist.sample(shape)
+            return samples
+        except:
+            return 'please check your input distribution or shape'
         
         
+
+    def histogram(self,samples):
+        '''
+        input:
+        numpy or tensorflow array
+        output:
+        histogram values, bin values
+        '''
+        if type(samples)!=np.ndarray:
+            samples = samples.numpy()
+        samples = samples.flatten()
+        
+        Nbin = self.Nbins
+        bin_array = tf.range(Nbin//2 * (-1) ,Nbin//2+1,delta=1,dtype=tf.float32)
+        histogram = plt.hist(samples, bins=np.ndarray.tolist(bin_array.numpy()) )
+        histvalue = histogram[0]
+        binvalue = histogram[1]
+         
+        return histvalue, binvalue
+                
+    # write data into a .txt file
+    
+   # def
         
         
-        
-        
-        
-        
-        
-        
-   
