@@ -10,9 +10,11 @@ import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
 tfd = tfp.distributions
+import os
 import sys
 sys.path.append('./data/')
 import json
+
 
 # create a simulator class
 
@@ -23,6 +25,8 @@ class simulator:
     N = 0.           # average detection events per bin
     ndata = 0         # number of data files generated
     info = {}         # a dictionary containing simulation parameters
+    groundtruth = 0.   # g2(0) value, the threshold for classifiers
+    classify = False     # the binary result
     
     # fraction of light sources
     p_sps = 0.         
@@ -38,8 +42,9 @@ class simulator:
     
 
     
-    def __init__(self, Nbins, width, Ndet, sps, laser, non, ther):
+    def __init__(self, gt, Nbins, width, Ndet, sps, laser, non, ther):
         '''
+        gt    ->  ground truth, g2(0)<gt will be considered as a single photon source
         Nbins ->  number of bins
         width ->  bin width in nanoseconds
         Ndet  ->  total detection events
@@ -48,6 +53,7 @@ class simulator:
         non   ->  fraction of no photo detected        
         ther  ->  intensity fraction of a thermal source 
         '''
+        self.groundtruth = gt
         self.Nbins = Nbins
         self.bin_width = width
         self.Ndetections = Ndet
@@ -68,6 +74,9 @@ class simulator:
         
         
     def piechart(self):
+        '''
+        output a piechart of light sources
+        '''
         fig,ax = plt.subplots(1,1)
         ax.pie([i for i in list(self.info.values())[:4]],
         labels=[i for i in list(self.info.keys())[:4]],autopct='%1.2f%%',startangle=90)
@@ -77,7 +86,7 @@ class simulator:
     #total_dist = 0.
     def distribution(self):
         '''
-        generate probability distribution of co-detection events
+        output a tf distribution about the probability distribution of co-detection events
         '''
         Nbin = self.Nbins
         bin_array = tf.range(Nbin//2 * (-1) ,Nbin//2+1,delta=1,dtype=tf.float32)
@@ -115,34 +124,114 @@ class simulator:
         return total_dist
 
         
-    def sample(self,distribution, shape):
+    def get_data(self,dist, plot=False, save=False, name='data'):
         '''
         input: 
         distribution -> a tf distribution,  
-        shape -> 0D or 1D `int32` `Tensor`. Shape of the generated samples
+        plot -> boolean, it will make a histogram plot if true (default false)
+        save -> boolean, will save data in a .txt file if true (default false)
+        name -> filename, 'data' by default
         output:
-        sample array
+        histogram plot,
+        normalized g2 signal plot,
+        bin number and signal in np.array,
+        result in binary: 1 -> it's single photon source; 0 -> it's not
         '''
-        dist = distribution
+        distribution = dist
+        counts = self.Ndetections
+        
         try:
-            samples = dist.sample(shape)
-            return samples
+            samples = distribution.sample(counts)
         except:
-            return 'please check your input distribution or shape'
+            return 'please check your input distribution'
         
-        
+        # adjust samples into numpy flattened arrays
+        if type(samples)!=np.ndarray:
+            samples = samples.numpy()
+        samples = samples.flatten()
 
-    def histogram(self,samples, plot=False):
+        
+        # get histogram results
+        Nbin = self.Nbins
+        bin_array = tf.range(Nbin//2 * (-1) ,Nbin//2+1,delta=1,dtype=tf.float32)
+        histogram = np.histogram(samples, bins=np.ndarray.tolist(bin_array.numpy()) )
+        histvalue = histogram[0]
+        binnumber = histogram[1][:-1]
+        #binvalues = np.array
+        
+        
+        # normalize the signal
+        norm = np.average(histvalue[np.argsort(histvalue)[len(histvalue)//2:]]) 
+        signal = histvalue/norm
+        
+        
+        # make a histogram plot
+        if plot:
+            f1 = plt.figure(1)
+            plt.hist(samples, bins=np.ndarray.tolist(bin_array.numpy()) )
+            plt.title('mixed sources detection histogram')
+            plt.xlabel('delay time bin')
+            
+            f2 = plt.figure(2)
+            plt.plot(binnumber,signal)
+            plt.title('mixed sources detection plot')
+            plt.xlabel('delay time bin')
+            plt.ylabel('# events')
+
+            #fig.tight_layout()
+        
+        
+        # check it is a single photon source or not
+        g2zero = signal[binnumber==0.]
+        if g2zero < self.groundtruth:
+            self.classify = True
+        else:
+            self.classify = False
+        
+        binary = 1 if self.classify else 0
+        
+        
+        # return values
+        data = np.array([signal, binnumber])
+        
+        
+        # save the data 
+        if save: 
+            filename = './data/' + name + '.txt'
+            
+            if os.path.isfile(filename):
+                raise Exception('file already exists, please use another name')
+            try: 
+                file = open(filename,'w')  # 'a' for appending
+            except:
+                raise Exception('please use valid name')
+                #file.write(json.dumps(self.info))
+            
+            for key, value in self.info.items():    # iterate on info values
+                file.write('%s:%10.4f\n' % (key, value))
+            file.write('\n')
+            np.savetxt(file, np.array([binary]), header='binary result', delimiter=",")     # add bin numbers
+            file.write('\n')
+            np.savetxt(file, signal, header='g2 signal', delimiter=',')   # append g2 values
+            file.write('\n')
+            np.savetxt(file, binnumber, header='time bin value', delimiter=",")     # add bin numbers
+            file.close()
+        
+        return data, binary
+        
+        
+        
+        
+    #def histogram(self,samples):
         '''
         input:
         samples -> numpy or tensorflow array
-        plot -> boolean, does it need a histogram plot or not, default false
         output:
         histogram values, bin values
         histogram values, bin values
         '''
         
-        if type(samples)!=np.ndarray:
+        '''if type(samples)!=np.ndarray:
             samples = samples.numpy()
         samples = samples.flatten()
         
@@ -155,7 +244,7 @@ class simulator:
         if plot:
             plt.hist(samples, bins=np.ndarray.tolist(bin_array.numpy()) )
         
-        return histvalue, binnumber
+        return histvalue, binnumber'''
                 
     # write data into a .txt file
     def savedata(self, histvalue, binnumber, name):
@@ -168,11 +257,14 @@ class simulator:
         except:
             raise Exception('file already exists, please use another name')
         #file.write(json.dumps(self.info))
-        for key, value in self.info.items(): 
+        
+        for key, value in self.info.items():    # iterate on info values
             file.write('%s:%10.4f\n' % (key, value))
         file.write('\n')
-        np.savetxt(file, histvalue, header='histogram value', delimiter=',')
+        np.savetxt(file, np.array([binary]), header='binary result', delimiter=",")     # add bin numbers
         file.write('\n')
-        np.savetxt(file, binnumber, header='bin value', delimiter=",")
+        np.savetxt(file, signal, header='g2 signal', delimiter=',')   # append g2 values
+        file.write('\n')
+        np.savetxt(file, binnumber, header='time bin value', delimiter=",")     # add bin numbers
         file.close()
         
