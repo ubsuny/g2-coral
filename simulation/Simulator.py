@@ -222,6 +222,8 @@ class simulator:
         
         
         
+        
+        
     #def histogram(self,samples):
         '''
         input:
@@ -247,11 +249,11 @@ class simulator:
         return histvalue, binnumber'''
                 
     # write data into a .txt file
-    def savedata(self, histvalue, binnumber, name):
+    #def savedata(self, histvalue, binnumber, name):
         '''
         input: histogram values, bin number, file name in a string
         '''
-        filename = './data/' + name + '.txt'
+        '''filename = './data/' + name + '.txt'
         try: 
             file = open(filename,'a')
         except:
@@ -266,5 +268,5 @@ class simulator:
         np.savetxt(file, signal, header='g2 signal', delimiter=',')   # append g2 values
         file.write('\n')
         np.savetxt(file, binnumber, header='time bin value', delimiter=",")     # add bin numbers
-        file.close()
+        file.close()'''
         
