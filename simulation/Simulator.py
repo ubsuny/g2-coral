@@ -10,6 +10,9 @@ import numpy as np
 import tensorflow as tf
 import tensorflow_probability as tfp
 tfd = tfp.distributions
+import sys
+sys.path.append('./data/')
+import json
 
 # create a simulator class
 
@@ -71,7 +74,7 @@ class simulator:
         ax.set_title('Probability of light sources')
         fig.show()
         
-
+    #total_dist = 0.
     def distribution(self):
         '''
         generate probability distribution of co-detection events
@@ -108,6 +111,7 @@ class simulator:
             cat = tfd.Categorical(probs=[self.p_sps, self.p_laser, self.p_non, self.p_ther]),
             components = [sps_dist,laser_dist,non_dist,ther_dist] )
         
+        #self.total_dist = total_dist
         return total_dist
 
         
@@ -128,27 +132,47 @@ class simulator:
         
         
 
-    def histogram(self,samples):
+    def histogram(self,samples, plot=False):
         '''
         input:
-        numpy or tensorflow array
+        samples -> numpy or tensorflow array
+        plot -> boolean, does it need a histogram plot or not, default false
         output:
         histogram values, bin values
+        histogram values, bin values
         '''
+        
         if type(samples)!=np.ndarray:
             samples = samples.numpy()
         samples = samples.flatten()
         
         Nbin = self.Nbins
         bin_array = tf.range(Nbin//2 * (-1) ,Nbin//2+1,delta=1,dtype=tf.float32)
-        histogram = plt.hist(samples, bins=np.ndarray.tolist(bin_array.numpy()) )
+        histogram = np.histogram(samples, bins=np.ndarray.tolist(bin_array.numpy()) )
         histvalue = histogram[0]
-        binvalue = histogram[1]
+        binnumber = histogram[1][1:]
          
-        return histvalue, binvalue
+        if plot:
+            plt.hist(samples, bins=np.ndarray.tolist(bin_array.numpy()) )
+        
+        return histvalue, binnumber
                 
     # write data into a .txt file
-    
-   # def
-        
+    def savedata(self, histvalue, binnumber, name):
+        '''
+        input: histogram values, bin number, file name in a string
+        '''
+        filename = './data/' + name + '.txt'
+        try: 
+            file = open(filename,'a')
+        except:
+            raise Exception('file already exists, please use another name')
+        #file.write(json.dumps(self.info))
+        for key, value in self.info.items(): 
+            file.write('%s:%10.4f\n' % (key, value))
+        file.write('\n')
+        np.savetxt(file, histvalue, header='histogram value', delimiter=',')
+        file.write('\n')
+        np.savetxt(file, binnumber, header='bin value', delimiter=",")
+        file.close()
         
