@@ -161,7 +161,8 @@ class simulator:
         
         
         # normalize the signal
-        norm = np.average(histvalue[np.argsort(histvalue)[len(histvalue)//2:]]) 
+        norm = (np.average(histvalue[:len(histvalue)//4]) + np.average(histvalue[len(histvalue)//4:]))/2
+        #norm = np.average(histvalue[np.argsort(histvalue)[len(histvalue)//2:]]) 
         signal = histvalue/norm
         
         
@@ -192,7 +193,7 @@ class simulator:
         
         
         # return values
-        data = np.array([signal, binnumber])
+        data = np.array([signal, binnumber, np.array([binary])])
         
         
         # save the data 
@@ -217,7 +218,7 @@ class simulator:
             np.savetxt(file, binnumber, header='time bin value', delimiter=",")     # add bin numbers
             file.close()
         
-        return data, binary
+        return data
         
         
         
