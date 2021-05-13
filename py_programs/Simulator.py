@@ -192,7 +192,6 @@ class simulator:
         # save the data 
         if save: 
             filename = name + '.txt'
-            
             if os.path.isfile(filename):
                 raise Exception('File already exists, please use another name.')
             try: 
@@ -201,42 +200,53 @@ class simulator:
                 raise Exception('Please use valid name.')
                 #file.write(json.dumps(self.info))
             
+            # write in the simulation info 
             for key, value in self.info.items():    # iterate on info values
                 file.write('%s:%10.4f\n' % (key, value))
                 
+            # write in data sets
             file.write('\n')
-            file.write('data array format: (N seperate measurements, [binnumber, normalized g2 signal, binvalues], data) ')
-            file.write('\n')
-            np.savetxt(file, data[], header='binary result', delimiter=",")     # add bin numbers
-            file.write('\n')
-            np.savetxt(file, signal, header='g2 signal', delimiter=',')   # append g2 values
-            file.write('\n')
-            np.savetxt(file, binnumber, header='time bin value', delimiter=",")     # add bin numbers
+            file.write('data array format: [binnumber   normalized g2 signal   binvalues],  data ')
+            np.savetxt(file, data[:,2,:], header='histogram values (int)') 
+            np.savetxt(file, data[:,1,:], header='normalized g2 signal') 
+            np.savetxt(file, data[:,0,:], header='bin number array') 
             file.close()
         
         return data
         
         
-    def load_data(self, filename):
-        gt = np.loadtxt(filename, skiprows=9, max_rows=1)
-        binnum = int(np.loadtxt(filename, skiprows=4, usecols=1, max_rows=1, delimiter=':'))
-        g2 = np.loadtxt(filename, skiprows=12, max_rows=binnum)
-        
-        return [gt, g2]
-        
-        
-        
- # check it is a single photon source or not
-        g2zero = signal[binnumber==0.]
-        if g2zero < self.groundtruth:
-            self.classify = True
-        else:
-            self.classify = False
-        
-        binary = 1 if self.classify else 0
-        
-        
-        
+def load_data(filename):
+    '''
+    input: path + filename
+    output: data sets, same format with generated data sets
+    '''
+    # I must say, this is a stupid way for parsing. I will switch to pandas once available
+    parse = np.loadtxt(filename, skiprows=1, max_rows=1000000)
+    data = np.zeros((parse.shape[0]//3, 3, parse.shape[1]))
+    data[:,0,:] = parse[:parse.shape[0]//3,:]
+    data[:,1,:] = parse[parse.shape[0]//3:parse.shape[0]*2//3,:]
+    data[:,2,:] = parse[parse.shape[0]*2//3:,:]
+    
+    return data
+  
+    
+# get ground truth from data sets
+def get_truth(data,thr):
+    '''
+    input: data array, threshhold for classifying sps or not sps
+    output: a binary result array
+    '''
+    signal = data[:,1,:]
+    binnumber = data[:,2,:]
+    
+    # create a 1d-array of g2(0) values
+    g2zero = np.ndarray.flatten(np.array([signal[i][binnumber[i]==0] for i in range(signal.shape[0])]))
+    binary = np.zeros(g2zero.shape)
+    
+    # if it's smaller than the threshold then make it to 1 (it is a sps)
+    binary[[g2zero[i]<thr for i in range(len(g2zero))]] = 1
+    
+    return binary
         
         
         
