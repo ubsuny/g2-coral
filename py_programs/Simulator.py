@@ -17,6 +17,7 @@ import json
 
 # create a simulator class
 class simulator:
+    
     Nbins = 0        # number of bins
     Ndetections = 0            # total detection events
     N = 0.           # average detection events per bin
@@ -33,12 +34,14 @@ class simulator:
     p_ther = 0.      
     
     
-   # exp_rate = 1.       # exponential rate
-   # n = 1           # number of identical single photon emitters
+    # exp_rate = 1.       # exponential rate
+    # n = 1           # number of identical single photon emitters
     # g20 = 1 - (1/n)  # correlation at zero time delay
     
-        ''' gt    ->  ground truth, g2(0)<gt will be considered as a single photon source
-        width ->  bin width in nanoseconds'''
+    ''' 
+    gt    ->  ground truth, g2(0)<gt will be considered as a single photon source
+    width ->  bin width in nanoseconds
+    '''
 
     
     def __init__(self,  Nbins,  Ndet, nset, sps, laser, non, ther):
@@ -70,7 +73,7 @@ class simulator:
             'thermal source fraction': self.p_ther,
             'non-detected fraction': self.p_non,
             'number of bins': self.Nbins,
-            'number of data sets': self.n_sets 
+            'number of data sets': self.n_sets ,
             #'bin width (ns)': self.bin_width,
             'average detection events per bin': self.N,}
 
@@ -122,12 +125,6 @@ class simulator:
         fig.show()
     
 
-    def get_distribution(self):
-        '''
-        output: a tf distribution about the probability distribution of co-detection events
-        '''
-        return self.total_dist
-
         
     def get_data(self, plot=False, save=False, name='data'):
         '''
@@ -143,7 +140,7 @@ class simulator:
         '''
         distribution = self.total_dist
         counts = self.Ndetections
-        data = np.zeroes((self.nset, 3, self.Nbins))  # output data shape, 3 here represents [binnumber, g2signal, binvalue] format
+        data = np.zeros((self.n_sets, 3, self.Nbins))  # output data shape, 3 here represents [binnumber, g2signal, binvalue] format
 
         for i in np.arange(self.n_sets):
             try:
@@ -159,6 +156,8 @@ class simulator:
 
         
             # get histogram results
+            Nbin = self.Nbins
+            bin_array = tf.range(Nbin//2 * (-1) ,Nbin//2+1,delta=1,dtype=tf.float32)
             histogram = np.histogram(samples, bins=np.ndarray.tolist(bin_array.numpy()) )
             histvalue = histogram[0]
             binnumber = histogram[1][:-1]
@@ -187,11 +186,11 @@ class simulator:
             plt.xlabel('delay time bin')
             plt.ylabel('# events')
             #fig.tight_layout()
-            print('Above plots are from the last set of data.')
+            print('Following plots are from the last set of data.')
         
         # save the data 
         if save: 
-            filename = name + '.txt'
+            filename = name + '.csv'
             if os.path.isfile(filename):
                 raise Exception('File already exists, please use another name.')
             try: 
@@ -207,9 +206,9 @@ class simulator:
             # write in data sets
             file.write('\n')
             file.write('data array format: [binnumber   normalized g2 signal   binvalues],  data ')
-            np.savetxt(file, data[:,2,:], header='histogram values (int)') 
-            np.savetxt(file, data[:,1,:], header='normalized g2 signal') 
             np.savetxt(file, data[:,0,:], header='bin number array') 
+            np.savetxt(file, data[:,1,:], header='normalized g2 signal') 
+            np.savetxt(file, data[:,2,:], header='histogram values (int)') 
             file.close()
         
         return data
@@ -221,7 +220,7 @@ def load_data(filename):
     output: data sets, same format with generated data sets
     '''
     # I must say, this is a stupid way for parsing. I will switch to pandas once available
-    parse = np.loadtxt(filename, skiprows=1, max_rows=1000000)
+    parse = np.loadtxt(filename, skiprows=9, max_rows=1000000)
     data = np.zeros((parse.shape[0]//3, 3, parse.shape[1]))
     data[:,0,:] = parse[:parse.shape[0]//3,:]
     data[:,1,:] = parse[parse.shape[0]//3:parse.shape[0]*2//3,:]
@@ -237,7 +236,7 @@ def get_truth(data,thr):
     output: a binary result array
     '''
     signal = data[:,1,:]
-    binnumber = data[:,2,:]
+    binnumber = data[:,0,:]
     
     # create a 1d-array of g2(0) values
     g2zero = np.ndarray.flatten(np.array([signal[i][binnumber[i]==0] for i in range(signal.shape[0])]))
@@ -249,51 +248,4 @@ def get_truth(data,thr):
     return binary
         
         
-        
-        
-    #def histogram(self,samples):
-        '''
-        input:
-        samples -> numpy or tensorflow array
-        output:
-        histogram values, bin values
-        histogram values, bin values
-        '''
-        
-        '''if type(samples)!=np.ndarray:
-            samples = samples.numpy()
-        samples = samples.flatten()
-        
-        Nbin = self.Nbins
-        bin_array = tf.range(Nbin//2 * (-1) ,Nbin//2+1,delta=1,dtype=tf.float32)
-        histogram = np.histogram(samples, bins=np.ndarray.tolist(bin_array.numpy()) )
-        histvalue = histogram[0]
-        binnumber = histogram[1][1:]
-         
-        if plot:
-            plt.hist(samples, bins=np.ndarray.tolist(bin_array.numpy()) )
-        
-        return histvalue, binnumber'''
-                
-    # write data into a .txt file
-    #def savedata(self, histvalue, binnumber, name):
-        '''
-        input: histogram values, bin number, file name in a string
-        '''
-        '''filename = './data/' + name + '.txt'
-        try: 
-            file = open(filename,'a')
-        except:
-            raise Exception('file already exists, please use another name')
-        #file.write(json.dumps(self.info))
-        
-        for key, value in self.info.items():    # iterate on info values
-            file.write('%s:%10.4f\n' % (key, value))
-        file.write('\n')
-        np.savetxt(file, np.array([binary]), header='binary result', delimiter=",")     # add bin numbers
-        file.write('\n')
-        np.savetxt(file, signal, header='g2 signal', delimiter=',')   # append g2 values
-        file.write('\n')
-        np.savetxt(file, binnumber, header='time bin value', delimiter=",")     # add bin numbers
-        file.close()'''
-        
+     
