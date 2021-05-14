@@ -220,7 +220,7 @@ def load_data(filename):
     output: data sets, same format with generated data sets
     '''
     # I must say, this is a stupid way for parsing. I will switch to pandas once available
-    parse = np.loadtxt(filename, skiprows=9, max_rows=1000000)
+    parse = np.loadtxt(filename+'.csv', skiprows=9, max_rows=1000000)
     data = np.zeros((parse.shape[0]//3, 3, parse.shape[1]))
     data[:,0,:] = parse[:parse.shape[0]//3,:]
     data[:,1,:] = parse[parse.shape[0]//3:parse.shape[0]*2//3,:]
