@@ -1,0 +1,12 @@
+title:
+speedup g2 correlation using CNN on a  google TPU
+
+
+description:
+Final project presentation for PHY506
+We develop a CNN model to classify single photon source and implement it on a Google edge TPU. 
+
+midterm milestone video:
+https://www.youtube.com/watch?v=LmYhI6nC7gM&list=PL7zcvRX424MnXzs2DYDIRtWjpCj0afTgt&index=2
+
+
